@@ -1,0 +1,44 @@
+openapi: 3.0.0
+info:
+  title: Flask API
+  description: API for interacting with the database
+  version: 1.0.0
+servers:
+  - url: http://localhost:3245
+paths:
+  /api/tables:
+    get:
+      summary: Get all tables in the database
+      responses:
+        '200':
+          description: A list of tables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /api/tables/{table_name}:
+    get:
+      summary: Get data from a specific table
+      parameters:
+        - name: table_name
+          in: path
+          required: true
+          description: The name of the table to retrieve data from
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Data from the table
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    column1:
+                      type: string
+                    column2:
+                      type: string
