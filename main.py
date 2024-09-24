@@ -10,13 +10,14 @@ API_URL = 'https://raw.githubusercontent.com/FilippoPietroNeri/FilippoPietroNeri
 database = mysql.connector.connect(
     host='91.227.114.240',  # Qua mettiamo il nostro indirizzo ip del nostro cloud
     port=3306,              # La porta a cui si apre MYSQL di default è 3306
-    user='root',            # Nickname di default! non e' sicuro ma a noi va bene lo stesso
+    user='root',
     password='M0ZUp6gcsilWQaD08Ob3qkGySyy1hAHpj11',
     database='4einf'
 )
 
 # Questo metodo crea un oggetto cursore dalla connessione al database. Un cursore ti permette di interagire con il database eseguendo query SQL, recuperando dati e svolgendo operazioni sul database.
 dbcursor = database.cursor()
+
 
 @app.route('/testingonly')
 def homepage():
@@ -50,35 +51,71 @@ def get_tables():
     return jsonify([table[0] for table in tables]), 200
 
 
-@app.route('/api/tables/<table_name>', methods=['GET'])
+@app.route('/api/tables/<table_name>', methods=['GET', 'PUT', 'DELETE'])
 def get_table_data(table_name):
-    column = request.args.get('column')
-    colval = request.args.get('c_value')
-    try:
-        dbcursor.execute(f'SELECT * FROM {table_name}')
-        data = dbcursor.fetchall()
+    if request.method == 'GET':
+        column = request.args.get('column')
+        colval = request.args.get('c_value')
+        try:
+            dbcursor.execute(f'SELECT * FROM {table_name}')
+            data = dbcursor.fetchall()
 
-        if column and colval:
-            dbcursor.execute(f"WHERE {column}={colval}")
-        elif column and not colval:
-            dbcursor.execute(f'DESCRIBE {column}')
-        else:
-            dbcursor.execute(f'SHOW COLUMNS FROM {table_name}')
+            if column and colval:
+                dbcursor.execute(f"WHERE {column}={colval}")
+            elif column and not colval:
+                dbcursor.execute(f'DESCRIBE {column}')
+            else:
+                dbcursor.execute(f'SHOW COLUMNS FROM {table_name}')
 
-        columns = [col[0] for col in dbcursor.fetchall()]
+            columns = [col[0] for col in dbcursor.fetchall()]
+            result = [dict(zip(columns, row)) for row in data]
 
-        result = [dict(zip(columns, row)) for row in data]
+            return jsonify(result)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            id_value = data.pop('id', None) 
 
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+            if id_value is None:
+                return jsonify({'error': 'ID is required for PUT request'}), 400
+
+            set_clause = ', '.join([f"{col} = %s" for col in data.keys()])
+            update_query = f"UPDATE {table_name} SET {set_clause} WHERE id = %s"
+            values = list(data.values()) + [id_value]
+
+            dbcursor.execute(update_query, values)
+            database.commit()
+
+            return jsonify({'message': 'Row updated successfully'}), 200
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+    elif request.method == 'DELETE':
+        try:
+            data = request.json
+            id_value = data.get('id')
+
+            if id_value is None:
+                return jsonify({'error': 'ID is required for DELETE request'}), 400
+
+            delete_query = f"DELETE FROM {table_name} WHERE id = %s"
+            dbcursor.execute(delete_query, (id_value,))
+            database.commit()
+
+            return jsonify({'message': 'Row deleted successfully'}), 200
+
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
 
 
 swaggerui_blueprint = get_swaggerui_blueprint(
     SWAGGER_URL,
     API_URL,
-    config={ 
-        'app_name': "Test application"
+    config={
+        'app_name': "MYSQL API DOCS"
     },
 )
 
